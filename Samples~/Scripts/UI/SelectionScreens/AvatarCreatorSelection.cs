@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using ReadyPlayerMe.AvatarCreator;
 using ReadyPlayerMe.AvatarLoader;
@@ -7,7 +8,7 @@ using UnityEngine.UI;
 
 namespace ReadyPlayerMe
 {
-    public class AvatarCreatorSelection : State
+    public class AvatarCreatorSelection : State, IDisposable
     {
         [SerializeField] private AssetTypeUICreator assetTypeUICreator;
         [SerializeField] private AssetButtonCreator assetButtonCreator;
@@ -15,11 +16,13 @@ namespace ReadyPlayerMe
         [SerializeField] private AvatarConfig inCreatorConfig;
         [SerializeField] private RuntimeAnimatorController animator;
 
+        private PartnerAssetsManager partnerAssetManager;
         private AvatarManager avatarManager;
         private GameObject avatar;
         private Quaternion lastRotation;
 
         public override StateType StateType => StateType.Editor;
+        public override StateType NextState => StateType.End;
 
         private void OnEnable()
         {
@@ -39,6 +42,8 @@ namespace ReadyPlayerMe
                 Destroy(avatar);
             }
             saveButton.gameObject.SetActive(false);
+
+            Dispose();
             assetTypeUICreator.ResetUI();
         }
 
@@ -62,13 +67,13 @@ namespace ReadyPlayerMe
         {
             var startTime = Time.time;
 
-            var partnerAssetManager = new PartnerAssetsManager(
+            partnerAssetManager = new PartnerAssetsManager(
                 DataStore.User.Token,
                 DataStore.AvatarProperties.Partner,
                 DataStore.AvatarProperties.BodyType,
                 DataStore.AvatarProperties.Gender);
             var assetIconDownloadTasks = await partnerAssetManager.GetAllAssets();
-            
+
             DebugPanel.AddLogWithDuration("Got all partner assets", Time.time - startTime);
             CreateUI(DataStore.AvatarProperties.BodyType, assetIconDownloadTasks);
             partnerAssetManager.DownloadAssetsIcon(assetButtonCreator.SetAssetIcons);
@@ -104,12 +109,17 @@ namespace ReadyPlayerMe
                 inCreatorConfig);
 
             avatar = await avatarManager.Create(DataStore.AvatarProperties);
+            if (avatar == null)
+            {
+                return;
+            }
+
             DebugPanel.AddLogWithDuration("Avatar loaded", Time.time - startTime);
             assetButtonCreator.CreateColorUI(await LoadColors(), UpdateAvatarColor);
             ProcessAvatar();
             Loading.SetActive(false);
         }
-        
+
         private async void UpdateAvatarColor(AssetType assetType, int assetIndex)
         {
             var startTime = Time.time;
@@ -122,9 +132,14 @@ namespace ReadyPlayerMe
             payload.Assets.Add(assetType, assetIndex);
             lastRotation = avatar.transform.rotation = lastRotation;
             avatar = await avatarManager.UpdateAsset(assetType, assetIndex);
+            if (avatar == null)
+            {
+                return;
+            }
+
             ProcessAvatar();
             DebugPanel.AddLogWithDuration("Avatar updated", Time.time - startTime);
-        } 
+        }
 
         private async void UpdateAvatar(string assetId, AssetType assetType)
         {
@@ -138,6 +153,11 @@ namespace ReadyPlayerMe
             payload.Assets.Add(assetType, assetId);
             lastRotation = avatar.transform.rotation = lastRotation;
             avatar = await avatarManager.UpdateAsset(assetType, assetId);
+            if (avatar == null)
+            {
+                return;
+            }
+
             ProcessAvatar();
             DebugPanel.AddLogWithDuration("Avatar updated", Time.time - startTime);
         }
@@ -151,6 +171,12 @@ namespace ReadyPlayerMe
             }
             avatar.transform.rotation = lastRotation;
             avatar.AddComponent<RotateAvatar>();
+        }
+
+        public void Dispose()
+        {
+            partnerAssetManager?.Dispose();
+            avatarManager?.Dispose();
         }
     }
 }
