@@ -21,7 +21,7 @@ namespace ReadyPlayerMe.AvatarCreator
             return JsonConvert.DeserializeObject<PartnerAsset[]>(request.Text);
         }
 
-        public static async Task<Texture> GetAssetIcon(string token, string url)
+        public static async Task<Texture> GetAssetIcon(string token, string url, TextureWrapMode wrapMode = TextureWrapMode.Repeat)
         {
             var downloadHandler = new DownloadHandlerTexture();
             var response = await WebRequestDispatcher.SendRequest(
@@ -34,6 +34,7 @@ namespace ReadyPlayerMe.AvatarCreator
                 null,
                 downloadHandler);
 
+            response.Texture.wrapMode = wrapMode;
             return response.Texture;
         }
     }

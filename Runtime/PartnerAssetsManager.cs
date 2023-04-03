@@ -54,7 +54,7 @@ namespace ReadyPlayerMe.AvatarCreator
             foreach (var asset in chunk)
             {
                 var url = asset.AssetType == AssetType.EyeColor ? asset.Mask + "?w=256" : asset.Icon;
-                var iconTask = PartnerAssetsRequests.GetAssetIcon(token, url);
+                var iconTask = PartnerAssetsRequests.GetAssetIcon(token, url, TextureWrapMode.Clamp);
                 assetIconMap.Add(asset.Id, iconTask);
             }
 
